@@ -1,4 +1,5 @@
 import { MODEL_DEFAULT } from "@/lib/config"
+import { getPostHogClient } from "@/lib/posthog-server"
 import { isSupabaseEnabled } from "@/lib/supabase/config"
 import { createClient } from "@/lib/supabase/server"
 import { createGuestServerClient } from "@/lib/supabase/server-guest"
@@ -46,6 +47,7 @@ export async function GET(request: Request) {
     )
   }
 
+  let isNewUser = false
   try {
     // Try to insert user only if not exists
     const { error: insertError } = await supabaseAdmin.from("users").insert({
@@ -57,11 +59,33 @@ export async function GET(request: Request) {
       favorite_models: [MODEL_DEFAULT],
     })
 
-    if (insertError && insertError.code !== "23505") {
+    if (!insertError) {
+      isNewUser = true
+    } else if (insertError.code !== "23505") {
       console.error("Error inserting user:", insertError)
     }
   } catch (err) {
     console.error("Unexpected user insert error:", err)
+  }
+
+  // Track sign-in server-side and identify user
+  const posthog = getPostHogClient()
+  if (posthog) {
+    posthog.identify({
+      distinctId: user.id,
+      properties: {
+        $set: { is_new_user: isNewUser },
+      },
+    })
+    posthog.capture({
+      distinctId: user.id,
+      event: "user_signed_in",
+      properties: {
+        is_new_user: isNewUser,
+        provider: "google",
+      },
+    })
+    await posthog.flush()
   }
 
   const host = request.headers.get("host")

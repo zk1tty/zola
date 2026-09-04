@@ -1,3 +1,4 @@
+import { getPostHogClient } from "@/lib/posthog-server"
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 
@@ -31,6 +32,20 @@ export async function POST(request: Request) {
         { error: "Failed to update pinned" },
         { status: 500 }
       )
+    }
+
+    const { data: authData } = await supabase.auth.getUser()
+    const userId = authData?.user?.id
+    if (userId) {
+      const posthog = getPostHogClient()
+      if (posthog) {
+        posthog.capture({
+          distinctId: userId,
+          event: "chat_pinned",
+          properties: { chat_id: chatId, pinned },
+        })
+        await posthog.flush()
+      }
     }
 
     return NextResponse.json({ success: true }, { status: 200 })

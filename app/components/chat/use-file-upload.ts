@@ -4,6 +4,7 @@ import {
   checkFileUploadLimit,
   processFiles,
 } from "@/lib/file-handling"
+import posthog from "posthog-js"
 import { useCallback, useState } from "react"
 
 export const useFileUpload = () => {
@@ -54,6 +55,10 @@ export const useFileUpload = () => {
 
   const handleFileUpload = useCallback((newFiles: File[]) => {
     setFiles((prev) => [...prev, ...newFiles])
+    posthog.capture("file_uploaded", {
+      file_count: newFiles.length,
+      file_types: newFiles.map((f) => f.type),
+    })
   }, [])
 
   const handleFileRemove = useCallback((file: File) => {

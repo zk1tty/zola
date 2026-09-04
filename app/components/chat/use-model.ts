@@ -2,6 +2,7 @@ import { toast } from "@/components/ui/toast"
 import { Chats } from "@/lib/chat-store/types"
 import { MODEL_DEFAULT } from "@/lib/config"
 import type { UserProfile } from "@/lib/user/types"
+import posthog from "posthog-js"
 import { useCallback, useState } from "react"
 
 interface UseModelProps {
@@ -48,6 +49,11 @@ export function useModel({
       if (!user?.id && !chatId) {
         // For unauthenticated users without chat, just update local state
         setLocalSelectedModel(newModel)
+        posthog.capture("model_changed", {
+          new_model: newModel,
+          has_chat: false,
+          is_authenticated: false,
+        })
         return
       }
 
@@ -60,6 +66,11 @@ export function useModel({
           await updateChatModel(chatId, newModel)
           // Clear local override since it's now persisted in the chat
           setLocalSelectedModel(null)
+          posthog.capture("model_changed", {
+            new_model: newModel,
+            has_chat: true,
+            is_authenticated: true,
+          })
         } catch (err) {
           // Revert on error
           setLocalSelectedModel(null)
@@ -74,6 +85,11 @@ export function useModel({
         // Authenticated user but no chat yet - just update local state
         // The model will be used when creating a new chat
         setLocalSelectedModel(newModel)
+        posthog.capture("model_changed", {
+          new_model: newModel,
+          has_chat: false,
+          is_authenticated: true,
+        })
       }
     },
     [chatId, updateChatModel, user?.id]

@@ -2,6 +2,7 @@ import { syncRecentMessages } from "@/app/components/chat/syncRecentMessages"
 import { useChatDraft } from "@/app/hooks/use-chat-draft"
 import { toast } from "@/components/ui/toast"
 import { getOrCreateGuestUserId } from "@/lib/api"
+import posthog from "posthog-js"
 import { useChats } from "@/lib/chat-store/chats/provider"
 import { MESSAGE_MAX_LENGTH, SYSTEM_PROMPT_DEFAULT } from "@/lib/config"
 import { Attachment } from "@/lib/file-handling"
@@ -227,6 +228,14 @@ export function useChatCore({
       cacheAndAddMessage(optimisticMessage)
       clearDraft()
 
+      posthog.capture("message_sent", {
+        model: selectedModel,
+        has_files: submittedFiles.length > 0,
+        enable_search: enableSearch,
+        is_authenticated: isAuthenticated,
+        message_length: input.length,
+      })
+
       if (messages.length > 0) {
         bumpChat(currentChatId)
       }
@@ -378,6 +387,12 @@ export function useChatCore({
           options
         )
 
+        posthog.capture("message_edited", {
+          model: selectedModel,
+          is_authenticated: isAuthenticated,
+          edit_position: editIndex,
+        })
+
         // Remove optimistic message
         setMessages((prev) => prev.filter((msg) => msg.id !== optimisticId))
 
@@ -461,6 +476,12 @@ export function useChatCore({
           },
           options
         )
+
+        posthog.capture("suggestion_used", {
+          model: selectedModel,
+          is_authenticated: isAuthenticated,
+        })
+
         setMessages((prev) => prev.filter((msg) => msg.id !== optimisticId))
       } catch {
         setMessages((prev) => prev.filter((msg) => msg.id !== optimisticId))

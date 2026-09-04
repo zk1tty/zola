@@ -1,3 +1,4 @@
+import { getPostHogClient } from "@/lib/posthog-server"
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 
@@ -32,6 +33,17 @@ export async function POST(request: Request) {
 
     if (error)
       return NextResponse.json({ error: error.message }, { status: 500 })
+
+    const posthog = getPostHogClient()
+    if (posthog) {
+      posthog.capture({
+        distinctId: userId,
+        event: "project_created",
+        properties: { project_id: data?.id },
+      })
+      await posthog.flush()
+    }
+
     return NextResponse.json(data)
   } catch (err: unknown) {
     console.error("Error in projects endpoint:", err)

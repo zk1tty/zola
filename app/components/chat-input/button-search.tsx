@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button"
 import { Popover, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import { GlobeIcon } from "@phosphor-icons/react"
+import posthog from "posthog-js"
 import React from "react"
 import { PopoverContentAuth } from "./popover-content-auth"
 
@@ -19,6 +20,7 @@ export function ButtonSearch({
   const handleClick = () => {
     const newState = !isSelected
     onToggle?.(newState)
+    posthog.capture("web_search_toggled", { enabled: newState })
   }
 
   if (!isAuthenticated) {

@@ -1,3 +1,4 @@
+import { getPostHogClient } from "@/lib/posthog-server"
 import { createChatInDb } from "./api"
 
 export async function POST(request: Request) {
@@ -24,6 +25,20 @@ export async function POST(request: Request) {
         JSON.stringify({ error: "Supabase not available in this deployment." }),
         { status: 200 }
       )
+    }
+
+    const posthog = getPostHogClient()
+    if (posthog) {
+      posthog.capture({
+        distinctId: userId,
+        event: "chat_created",
+        properties: {
+          model,
+          is_authenticated: isAuthenticated,
+          has_project: Boolean(projectId),
+        },
+      })
+      await posthog.flush()
     }
 
     return new Response(JSON.stringify({ chat }), { status: 200 })

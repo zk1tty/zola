@@ -1,5 +1,6 @@
 import { encryptKey } from "@/lib/encryption"
 import { getModelsForProvider } from "@/lib/models"
+import { getPostHogClient } from "@/lib/posthog-server"
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 
@@ -101,6 +102,16 @@ export async function POST(request: Request) {
       }
     }
 
+    const posthog = getPostHogClient()
+    if (posthog) {
+      posthog.capture({
+        distinctId: authData.user.id,
+        event: "api_key_added",
+        properties: { provider, is_new_key: isNewKey },
+      })
+      await posthog.flush()
+    }
+
     return NextResponse.json({
       success: true,
       isNewKey,
@@ -149,6 +160,16 @@ export async function DELETE(request: Request) {
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    const posthog = getPostHogClient()
+    if (posthog) {
+      posthog.capture({
+        distinctId: authData.user.id,
+        event: "api_key_removed",
+        properties: { provider },
+      })
+      await posthog.flush()
     }
 
     return NextResponse.json({ success: true })

@@ -8,6 +8,7 @@ import {
   updateUserProfile,
 } from "@/lib/user-store/api"
 import type { UserProfile } from "@/lib/user/types"
+import posthog from "posthog-js"
 import { createContext, useContext, useEffect, useState } from "react"
 
 type UserContextType = {
@@ -60,11 +61,24 @@ export function UserProvider({
     setIsLoading(true)
     try {
       const success = await signOutUser()
-      if (success) setUser(null)
+      if (success) {
+        posthog.reset()
+        setUser(null)
+      }
     } finally {
       setIsLoading(false)
     }
   }
+
+  // Identify the user in PostHog whenever the logged-in user changes
+  useEffect(() => {
+    if (user?.id) {
+      posthog.identify(user.id, {
+        display_name: user.display_name,
+        is_premium: user.premium,
+      })
+    }
+  }, [user?.id, user?.display_name, user?.premium])
 
   // Set up realtime subscription for user data changes
   useEffect(() => {
